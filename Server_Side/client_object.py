@@ -28,6 +28,9 @@ class Client:
     def open_game_room(self):
         self.game_room = GameRoom()
 
+    def __eq__(self, other):
+        return self.username == other.username
+
     def __str__(self):
         return self.username
 
