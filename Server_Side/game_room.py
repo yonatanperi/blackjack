@@ -1,7 +1,7 @@
 import time
 from random import randint
-from Server_Side.sql import SQLConnection
-from Server_Side.hand import Hand
+from sql import SQLConnection
+from hand import Hand
 
 
 class GameRoom:

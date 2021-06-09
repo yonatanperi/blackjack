@@ -1,4 +1,4 @@
-from Server_Side.sql import SQLConnection
+from sql import SQLConnection
 
 
 class ClientRoom:

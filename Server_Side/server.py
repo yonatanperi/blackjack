@@ -1,6 +1,6 @@
 from threading import Thread
-from Server_Side.client_room import ClientRoom
-from Server_Side.client_object import Client
+from client_room import ClientRoom
+from client_object import Client
 import socket
 
 

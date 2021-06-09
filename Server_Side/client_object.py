@@ -1,4 +1,4 @@
-from Server_Side.game_room import GameRoom
+from game_room import GameRoom
 
 
 class Client:
