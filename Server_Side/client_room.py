@@ -8,34 +8,25 @@ class ClientRoom:
         self.client = client
         self.sql = SQLConnection()
 
-    def get_authentication(self):
-        return {"username": self.client.get_answer("Enter username: "),
-                "password": self.client.get_answer("Enter password: ")}
-
     def authenticate_client(self):
 
-        answer = self.client.get_answer("Welcome to the server!\nPlease login or register(lo/re): ").lower()
+        authentication = self.client.recv_message()  # [username, password, *args]
+        lo_re = self.sql.login
+        if len(authentication) > 2:
+            lo_re = self.sql.register
 
-        if answer not in ("lo", "re"):
+        if not lo_re(*authentication):
+            self.client.send_message(False)
             return self.authenticate_client()
 
-        else:
-            lo_re = {"lo": self.sql.login, "re": self.sql.register}
-            authentication = self.get_authentication()
-            if not lo_re[answer](**authentication):
-                self.client.send_message("Something went wrong...\nPlease try again with different values.")
-                return self.authenticate_client()
-
-        self.client.username = authentication["username"]
+        self.client.username = authentication[0]
         if not self.server.login(self.client):
-            self.client.send_message("You are already loged in to the server!")
+            self.client.send_message(False)
             return self.authenticate_client()
+
+        self.client.send_message(True)
 
         # user authenticated!
-        if answer == "re":
-            self.client.send_message("Registered successfully!")
-
-        self.client.send_message(f"Loged in as {self.client}\n")
 
         if self.sql.get_user_type(self.client.username) == "admin":
             return AdminRoom(self.client, self.server).main_menu()
@@ -53,7 +44,6 @@ Wins: {self.sql.get_staff_on_user(self.client.username, "win")}
 Losses: {self.sql.get_staff_on_user(self.client.username, "lose")}""")
 
         if points <= 0:
-            self.client.send_message("You are a loser!")
             return
 
         else:

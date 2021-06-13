@@ -4,7 +4,7 @@ import mysql.connector
 class SQLConnection:
     DEFAULT_SCORES = 2000
     USERNAME_MAX_LENGTH = 20
-    PASSWORD_MAX_LENGTH = 100
+    PASSWORD_MAX_LENGTH = EMAIL_MAX_LENGTH = 100
 
     def __init__(self):
         self.db = mysql.connector.connect(
@@ -23,7 +23,7 @@ class SQLConnection:
 
     def create_tables(self):
         self.cursor.execute(
-            f"CREATE TABLE IF NOT EXISTS users (username VARCHAR({SQLConnection.USERNAME_MAX_LENGTH}) NOT NULL PRIMARY KEY, password VARCHAR({SQLConnection.PASSWORD_MAX_LENGTH}) NOT NULL, user_type VARCHAR(20) NOT NULL)")
+            f"CREATE TABLE IF NOT EXISTS users (username VARCHAR({SQLConnection.USERNAME_MAX_LENGTH}) NOT NULL PRIMARY KEY, password VARCHAR({SQLConnection.PASSWORD_MAX_LENGTH}) NOT NULL, email VARCHAR({SQLConnection.EMAIL_MAX_LENGTH}) NOT NULL, user_type VARCHAR(20) NOT NULL)")
         self.cursor.execute(
             f"CREATE TABLE IF NOT EXISTS scores (username VARCHAR({SQLConnection.USERNAME_MAX_LENGTH}) PRIMARY KEY NOT NULL, score BIGINT NOT NULL, win INTEGER NOT NULL, lose INTEGER NOT NULL)")
         self.db.commit()
@@ -32,19 +32,20 @@ class SQLConnection:
         self.cursor.execute("DELETE FROM users")
         self.cursor.execute("DELETE FROM scores")
         self.db.commit()
-        self.register("yonatan", "7324545", "admin")
+        self.register("yonatan", "7324545", "yonatanperi333@gmail.com", "admin")
 
     def reset_db(self):
         self.create_tables()
         self.reset_tables()
 
-    def register(self, username, password, user_type="client"):
+    def register(self, username, password, email, user_type="client"):
         self.cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-        if self.cursor.fetchall() or len(username) > SQLConnection.USERNAME_MAX_LENGTH or len(password) > SQLConnection.PASSWORD_MAX_LENGTH:
+        if self.cursor.fetchall() or len(username) > SQLConnection.USERNAME_MAX_LENGTH or len(
+                password) > SQLConnection.PASSWORD_MAX_LENGTH:
             return False
 
-        self.cursor.execute("INSERT INTO users (username, password, user_type) VALUES (%s, %s, %s)",
-                            (username, password, user_type))
+        self.cursor.execute("INSERT INTO users (username, password, email, user_type) VALUES (%s, %s, %s, %s)",
+                            (username, password, email, user_type))
         self.cursor.execute("INSERT INTO scores (username, score, win, lose) VALUES (%s, %s, 0, 0)",
                             (username, SQLConnection.DEFAULT_SCORES))
         self.db.commit()
@@ -109,3 +110,5 @@ class SQLConnection:
         if self.cursor.fetchall():
             return True
         return False
+
+# SQLConnection().reset_db()

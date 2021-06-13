@@ -1,8 +1,10 @@
 from game_room import GameRoom
+import pickle
 
 
 class Client:
     HEADER_SIZE = 10
+    BUFFER_SIZE = 16
 
     def __init__(self, client_socket, username):
         self.socket = client_socket
@@ -11,15 +13,25 @@ class Client:
 
     def recv_message(self):
         try:
-            message_length = int(self.socket.recv(Client.HEADER_SIZE))
-            message = self.socket.recv(message_length)
-            return message.decode('utf-8')
-        except ConnectionResetError:
-            print(f"{self} loged out!")
+            full_msg = b''
+            new_msg = True
+            msg_len = 0
+            while len(full_msg) - Client.HEADER_SIZE != msg_len:
+                msg = self.socket.recv(Client.BUFFER_SIZE)
+                if new_msg:
+                    msg_len = int(msg[:Client.HEADER_SIZE])
+                    new_msg = False
+
+                full_msg += msg
+
+            # full msg recvd
+            return pickle.loads(full_msg[Client.HEADER_SIZE:])
+        except ConnectionResetError:  # loged out
             return
 
     def send_message(self, message):
-        self.socket.send(bytes(f'{len(message):<{Client.HEADER_SIZE}}{message}', 'utf-8'))
+        bytes_message = pickle.dumps(message)
+        self.socket.send(bytes(f'{len(bytes_message):<{Client.HEADER_SIZE}}', 'utf-8') + bytes_message)
 
     def get_answer(self, message):
         self.send_message(message)
