@@ -27,10 +27,10 @@ class ClientRoom:
         self.client.send_message(True)
 
         # user authenticated!
-
+        """
         if self.sql.get_user_type(self.client.username) == "admin":
             return AdminRoom(self.client, self.server).main_menu()
-
+        """
         return self.main_menu()
 
     def main_menu(self):
@@ -47,39 +47,25 @@ Losses: {self.sql.get_staff_on_user(self.client.username, "lose")}""")
             return
 
         else:
-            answer = ""
-
-            while answer not in ("create", "join", "logout", "exit"):
-                answer = self.client.get_answer(
-                    "Do you wanna create a game or join one? (create/join/logout/exit): ").lower()
+            answer = self.client.recv_message()
 
             if answer == "create":
                 self.client.open_game_room()
                 self.client.game_room.join(self.client)
             elif answer == "join":
-                game_room = self.server.get_game_room(
-                    self.client.get_answer("Which user's game room do you wanna join? "))
+                game_room = self.server.get_game_room(self.client.recv_message())
 
+                self.client.send_message(game_room)
                 if not game_room:
-                    self.client.send_message("Didn't find the game room you are looking for :(")
                     return self.main_menu()
-
                 game_room.join(self.client)
+
             elif answer == "logout":
-                self.logout(close_socket=False)
+                self.server.clients.remove(self.client)
+                print(f"{self.client} loged out!")
                 self.authenticate_client()
-            elif answer == "exit":
-                self.logout()
-                return
 
             return self.main_menu()
-
-    def logout(self, close_socket=True):
-        self.client.send_message("Bye bye")
-        self.server.clients.remove(self.client)
-        if close_socket:
-            self.client.socket.close()
-        print(f"{self.client} loged out!")
 
 
 class AdminRoom(ClientRoom):

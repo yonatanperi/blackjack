@@ -1,12 +1,13 @@
-from gui_form import GUIForm
+from GUI.gui_form import GUIForm
+from GUI.client_room import ClientRoom
 from tkinter import *
 from tkinter.ttk import *
 
 
 class LoRe(GUIForm):
 
-    def __init__(self, client):
-        super().__init__(client)
+    def __init__(self, socket):
+        super().__init__(socket)
         self.register_flag = False
 
         # username label and text entry box
@@ -44,8 +45,9 @@ class LoRe(GUIForm):
         self.root.mainloop()
 
     def lo_re(self, *args):
-        if self.client.get_answer(args):
-            self.error_text.set("Goooood!")  # login -> open room
+        if self.socket.get_answer(args):
+            self.root.destroy()
+            ClientRoom(self.socket, self)
         else:
             self.error_text.set("Something went wrong...\nPlease try again with different values.")
 

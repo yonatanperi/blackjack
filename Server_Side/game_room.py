@@ -13,7 +13,6 @@ class GameRoom:
         self.clients_connected = []  # The first on the list is the admin
         self.clients_ready = []
         self.start = self.round_over = False
-        self.burned_cards = {}  # {card: number of appearances}
         self.clients_bets = {}  # {client: bet}
         self.current_client = None
 
@@ -21,51 +20,40 @@ class GameRoom:
         if self.start or len(self.clients_connected) >= GameRoom.MAX_PLAYERS:
             return False
 
-        self.take_bet_from_player(client)
-
         # welcome!
         self.send_broadcast(
             f"{client.username} joined the game!\nThere are {len({*self.clients_connected}) + 1}/{GameRoom.MAX_PLAYERS} players in room!")
         self.clients_connected.append(client)
-        client.send_message(
-            f"""Welcome to {self.clients_connected[0].username}'s game room!
-Currently, there are {len({*self.clients_connected})}/{GameRoom.MAX_PLAYERS} players in room.
-There are {len(self.clients_ready) + 1} players ready!
-Waiting for other players...""")
+        client.send_message(f"""
+        Welcome to {self.clients_connected[0].username}'s game room!
+        Currently, there are {len({*self.clients_connected})}/{GameRoom.MAX_PLAYERS} players in room.
+        There are {len(self.clients_ready)} players ready!
+        You have {self.sql.get_staff_on_user(client.username, "score")} points!
+        Waiting for other players...""")
+
+        self.take_bet_from_player(client)
 
         return self.waiting_room(client)
 
     def take_bet_from_player(self, client):
 
         # get bet
-        bet = client.get_answer(
-            f"""You have {self.sql.get_staff_on_user(client.username, "score")} points!\nHow much do you wanna bet for the room?""")
+        bet = client.recv_message()
         if not bet.isdigit():
+            client.send_message(False)
             return self.take_bet_from_player(client)
         bet = int(bet)
         if bet <= 0:
+            client.send_message(False)
             return self.take_bet_from_player(client)
 
+        client.send_message(True)
         self.clients_bets[client] = bet
         self.actual_bet_taking(client)
 
     def actual_bet_taking(self, client):
         # take bet from client
         self.sql.add_staff_2_user(client.username, 'score', -self.clients_bets[client])
-
-    def get_ready_or_back(self, client):
-        client.send_message("Hit 'r' for READY and 'b' for BACK!")
-        answer = ""
-        while not (answer in ("b", "r") or self.start or client is self.clients_connected[0]):
-            answer = client.recv_message()
-
-        if answer == "b":
-            self.logout(client)
-        elif answer == "r":
-            self.clients_ready.append(client)
-            self.send_broadcast(f"{client} is ready!\nThere are {len(self.clients_ready) + 1} players ready!")
-        elif self.start:
-            client.send_message("Game already started :(\nWait until next round...")
 
     def logout(self, client):
         self.sql.add_staff_2_user(client.username, 'score', self.clients_bets[client])
@@ -75,61 +63,57 @@ Waiting for other players...""")
 
     def waiting_room(self, client):
 
-        if client is self.clients_connected[0]:  # The admin client
-            client.send_message("Hit 's' to START or 'b' for BACK!")
-            client_message = ""
-            while client_message not in ("s", "b"):
-                client_message = client.recv_message()
+        client.send_message("Connected successfully!")
 
-            # check if exited
-            if client_message == "b":
+        if client is self.clients_connected[0]:  # The admin client
+            ready = client.get_answer(True)  # is admin
+            if ready:
+                self.clients_ready.insert(0, client)
+                self.start_round()
+            else:
                 self.logout(client)
                 client.game_room = None
                 return
 
-            self.clients_ready.insert(0, client)
-            self.start_round()
-
         else:
-            self.get_ready_or_back(client)
+            ready = client.get_answer(False)  # is admin
 
-            if client not in self.clients_connected:  # exited
+            if ready:
+                while not self.start:  # waiting for the game to start...
+                    time.sleep(GameRoom.SLEEP_TIME)
+                    if client is self.clients_connected[0]:  # admin loged out
+                        self.logout(client)
+                        return
+
+                while self.start:  # game started
+                    time.sleep(GameRoom.SLEEP_TIME)
+            else:
+                self.logout(client)
                 return
 
-            while not (client is self.clients_connected[0] or self.start):  # waiting for the game to start...
-                time.sleep(GameRoom.SLEEP_TIME)
-
-            if client is self.clients_connected[0]:  # he is admin now!
-                client.game_room = self
-                self.clients_connected[0].send_message("You are admin now!")
-                self.clients_ready.remove(client)
-                return self.waiting_room(client)
-
-            while self.start:  # game started
-                time.sleep(GameRoom.SLEEP_TIME)
-
         # game over
-        client.send_message("Get ready for the next round!")
         self.take_bet_from_player(client)
         return self.waiting_room(client)
 
     def start_round(self):
 
         self.start = True
-        self.send_broadcast(f"""\n---------------------------\nNew round started!
-The players are: {self.clients_ready}
-It's {self.clients_connected[0]}'s turn!""")
 
-        dealers_hand = Hand(0, self.deal_card, cards=[0])
+        dealers_hand = Hand(0, cards=[0])
         dealers_hand.add_card()
         hands = {}  # {client: hand}
 
         # the actual game
         for client in self.clients_ready:
-            client_hand = Hand(self.clients_bets[client], self.deal_card)
-            hands[client] = client_hand
+            client.send_message(client.username)
 
-            client.send_message(f"The dealer's hand is: {dealers_hand}\nHere is your hand: {client_hand}")
+            clients_hand = Hand(self.clients_bets[client])
+            hands[client] = clients_hand
+
+            client.send_message((dealers_hand, clients_hand))
+
+        self.send_broadcast(f"""\n---------------------------\nNew round started!
+        The players are: {self.clients_ready}""")
 
         hands = self.pass_turn(self.clients_ready.copy(), hands)
 
@@ -195,9 +179,6 @@ It's {self.clients_connected[0]}'s turn!""")
                 message += "What do you wanna do? (stand, hit"
                 if len(current_clients_hand.cards) == 2:
                     message += ", double"
-                    if current_clients_hand.cards[0] == current_clients_hand.cards[1] or (
-                            current_clients_hand.cards[0] >= 10 and current_clients_hand.cards[1] >= 10):
-                        message += ", split"
 
                 message += "): "
 
@@ -216,25 +197,6 @@ It's {self.clients_connected[0]}'s turn!""")
                     if current_clients_hand.sum_2_highest_if_ace() > 21:
                         self.current_client.send_message("You are an idiot!")
                     self.send_pass_turn_message(clients_in_game)
-
-                elif move == "split" and "split" in message:
-
-                    self.actual_bet_taking(self.current_client)
-
-                    # actual split
-                    splited_hands = current_clients_hand.split()
-                    copy_client = self.current_client.__copy__()
-
-                    hands[copy_client] = splited_hands[0]
-                    hands[self.current_client] = splited_hands[1]
-
-                    clients_in_game.insert(0, copy_client)
-
-                    # send staff to player
-                    self.current_client.send_message(f"""Your hands are: {splited_hands[0]},
-{splited_hands[1]}""")
-                    self.pass_turn(clients_in_game, hands, split=True)
-                    return self.pass_turn(clients_in_game, hands, split=True)
 
                 elif move == "stand":
                     self.send_pass_turn_message(clients_in_game)
@@ -264,23 +226,6 @@ It's {self.clients_connected[0]}'s turn!""")
             self.send_broadcast(f"It's {clients_in_game[0]}'s turn!")
         else:
             self.send_broadcast("Round's OVER!\n")
-
-    def deal_card(self):
-        if sum(self.burned_cards.values()) >= GameRoom.DECKS_NUMBER * 3.5:
-            self.send_broadcast("Deck shuffled!")
-            self.burned_cards = {}
-
-        card = randint(1, 13)
-
-        if card in self.burned_cards.keys():
-            self.burned_cards[card] += 1
-        else:
-            self.burned_cards[card] = 1
-
-        if self.burned_cards[card] > GameRoom.DECKS_NUMBER * 4:
-            return self.deal_card()
-
-        return card
 
     def send_broadcast(self, message):
         for client in self.clients_connected:
