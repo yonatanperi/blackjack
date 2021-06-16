@@ -2,13 +2,13 @@ import random
 
 
 class Hand:
-
+    # just a blackjack hand object
     def __init__(self, bet, cards=None):
         if cards is None:
             cards = []
         self.bet = bet
         self.cards = cards
-        self.suit_cards = []
+        self.suit_cards = []  # for the imgs
         self.set_suit_cards()
         if not cards:
             for i in range(2):

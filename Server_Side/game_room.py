@@ -59,6 +59,7 @@ class GameRoom:
         self.send_broadcast(f"{client} has left the room!")
 
     def waiting_room(self, client):
+        # wait till the game starts
 
         if client is self.clients_connected[0]:  # The admin client
             ready = client.get_answer(True)  # is admin
@@ -168,6 +169,7 @@ It's {self.clients_ready[0]}'s turn!""")
         self.current_client = None
 
     def pass_turn(self, clients_in_game, hands):
+        # the actual dealer's work
         if clients_in_game:
             self.current_client = clients_in_game[0]
             current_clients_hand = hands[self.current_client]
