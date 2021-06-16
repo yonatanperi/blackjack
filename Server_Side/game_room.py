@@ -1,5 +1,4 @@
 import time
-from random import randint
 from sql import SQLConnection
 from hand import Hand
 
@@ -112,9 +111,10 @@ class GameRoom:
 
             client.send_message((dealers_hand, clients_hand))
 
+        #time.sleep(10)  # for the client to activate all the funcs
         self.send_broadcast(f"""\n---------------------------\nNew round started!
-        The players are: {self.clients_ready}""")
-
+The players are: {self.clients_ready}
+It's {self.clients_ready[0]}'s turn!""")
         hands = self.pass_turn(self.clients_ready.copy(), hands)
 
         while not self.round_over:
@@ -165,7 +165,7 @@ class GameRoom:
         self.clients_bets = {}
         self.current_client = None
 
-    def pass_turn(self, clients_in_game, hands, split=False):
+    def pass_turn(self, clients_in_game, hands):
         if clients_in_game:
             self.current_client = clients_in_game[0]
             current_clients_hand = hands[self.current_client]
@@ -173,21 +173,16 @@ class GameRoom:
             if current_clients_hand.sum_2_highest_if_ace() <= 21:
 
                 # prepare message
-                message = ""
-                if split:
-                    message += f"You currently playing with this hand: {current_clients_hand}!\n"
-                message += "What do you wanna do? (stand, hit"
+                game_options_num = 2  # hit, stand
                 if len(current_clients_hand.cards) == 2:
-                    message += ", double"
+                    game_options_num = 3  # hit, stand, double
 
-                message += "): "
-
-                move = self.current_client.get_answer(message)  # send message
+                move = self.current_client.get_answer(game_options_num)  # send message
 
                 if move == "hit":
                     self.hit(current_clients_hand)
 
-                elif move == "double" and "double" in message:
+                elif move == "double" and game_options_num == 3:
 
                     self.actual_bet_taking(self.current_client)
 
@@ -200,14 +195,10 @@ class GameRoom:
 
                 elif move == "stand":
                     self.send_pass_turn_message(clients_in_game)
-                    if split:
-                        return
             else:
                 self.current_client.send_message("You are Burned!\nWait until next round...")
 
                 self.send_pass_turn_message(clients_in_game)
-                if split:
-                    return
 
             return self.pass_turn(clients_in_game, hands)
 
@@ -217,7 +208,7 @@ class GameRoom:
 
     def hit(self, hand):
         hand.add_card()
-        self.current_client.send_message(f"Your hand is: {hand}")
+        self.current_client.send_message(hand)
 
     def send_pass_turn_message(self, clients_in_game):
         clients_in_game.pop(0)

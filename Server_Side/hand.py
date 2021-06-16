@@ -1,13 +1,24 @@
-from random import randint
+import random
 
 
 class Hand:
 
-    def __init__(self, bet, cards=None):
+    def __init__(self, bet, cards=[]):
         self.bet = bet
         self.cards = cards
-        if not self.cards:
-            self.cards = [randint(1, 13), randint(1, 13)]
+        self.suit_cards = []
+        self.set_suit_cards()
+        if not cards:
+            for i in range(2):
+                self.add_card()
+
+    def set_suit_cards(self):
+        for card_num in self.cards:
+            self.suit_cards.append((Hand.add_suit(card_num)))
+
+    @staticmethod
+    def add_suit(card_num):
+        return str(card_num) + random.choice(random.choice(('C', 'H', 'S', 'D')))
 
     def sum_2_highest_if_ace(self):
         cards_sum = self.sum_cards()
@@ -38,4 +49,6 @@ class Hand:
         return cards_sum
 
     def add_card(self):
-        self.cards.append(randint(1, 13))
+        card_num = random.randint(1, 13)
+        self.cards.append(card_num)
+        self.suit_cards.append((Hand.add_suit(card_num)))

@@ -9,4 +9,4 @@ class Room(GUIForm):
 
         self.welcome_text = StringVar()
         self.welcome_text.set(socket.recv_message())
-        Label(self.root, text=self.welcome_text.get()).grid(ipady=20, row=0, columnspan=3)
+        Label(self.root, textvariable=self.welcome_text).grid(ipady=20, row=0, columnspan=3)

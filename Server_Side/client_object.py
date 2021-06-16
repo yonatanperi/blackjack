@@ -1,3 +1,5 @@
+import time
+
 from game_room import GameRoom
 import pickle
 
@@ -30,6 +32,7 @@ class Client:
             return
 
     def send_message(self, message):
+        time.sleep(0.5)
         bytes_message = pickle.dumps(message)
         self.socket.send(bytes(f'{len(bytes_message):<{Client.HEADER_SIZE}}', 'utf-8') + bytes_message)
 
