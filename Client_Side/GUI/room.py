@@ -1,4 +1,4 @@
-from gui_form import GUIForm
+from GUI.gui_form import GUIForm
 from tkinter import *
 from tkinter.ttk import *
 

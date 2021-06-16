@@ -1,6 +1,6 @@
 from threading import Thread
 from GUI.room import Room
-from gui_form import GUIForm
+from GUI.gui_form import GUIForm
 from tkinter import *
 from tkinter.ttk import *
 from PIL import Image, ImageTk
@@ -27,22 +27,42 @@ class GameRoom(Room):
         self.socket.send_message(self.bet.get())
         self.please_wait_label.grid(row=2, columnspan=3)
         if self.socket.recv_message():  # is vailed
-            self.root.destroy()
-            _StartGame(self.socket)
+            if self.socket.recv_message():  # is admin
+                self.root.destroy()
+                AdminAuthorization(self.socket)
+            else:
+                self.socket.send_message(True)  # ready!
+                if self.socket.recv_message():  # game started!
+                    self.root.destroy()
+                    _StartGame(self.socket)
+
+
+class AdminAuthorization(GUIForm):
+    def __init__(self, socket):
+        super().__init__(socket)
+        Button(self.root, text="Start game!", command=self.confirm).grid(row=1)
+        self.root.mainloop()
+
+    def confirm(self):
+        self.root.destroy()
+        self.socket.send_message(True)  # ready!
+        _StartGame(self.socket)
 
 
 class _StartGame(GUIForm):
+    FONT = 'Helvetica 10 bold'
+
     def __init__(self, socket):
         super().__init__(socket)
 
         self.welcome_text = StringVar()
         self.welcome_text.set(socket.recv_message())
-        Label(self.root, textvariable=self.welcome_text).grid(ipady=20, row=3, columnspan=3)
+        Label(self.root, textvariable=self.welcome_text, font=self.FONT).grid(ipady=20, row=3, columnspan=3)
 
-        self.admin = self.socket.recv_message()  # is admin?
-        self.socket.send_message(True)  # ready!
         self.username = self.socket.recv_message()
-        self.dealers_hand, self.my_hand = self.socket.recv_message()
+        hands = self.socket.recv_message()
+        print(hands)
+        self.dealers_hand, self.my_hand = hands
 
         self.my_turn = False
         self.buttons = []  # for when it's your turn
@@ -52,12 +72,12 @@ class _StartGame(GUIForm):
 
         # dealer's hand
         self.dealers_label_text = StringVar()
-        Label(self.root, textvariable=self.dealers_label_text).grid(row=0, column=0)
+        Label(self.root, textvariable=self.dealers_label_text, font=self.FONT).grid(row=0, column=0)
         self.config_dealers_hand(self.dealers_hand)
 
         # client's hand
         self.clients_label_text = StringVar()
-        Label(self.root, textvariable=self.clients_label_text).grid(row=1, column=0)
+        Label(self.root, textvariable=self.clients_label_text, font=self.FONT).grid(row=1, column=0)
         self.config_clients_hand(self.my_hand)
 
         # config buttons
@@ -87,15 +107,13 @@ class _StartGame(GUIForm):
         return img_label
 
     def config_clients_hand(self, my_hand, row=1, initial_column=1):
-        self.clients_label_text.set(f"Your hand:\nSum: {self.my_hand.sum_cards()}")
-
         self.my_hand = my_hand
+        self.clients_label_text.set(f"Your hand:\nSum: {self.my_hand.sum_cards()}")
         self.config_hand(self.my_hand, row, initial_column)
 
     def config_dealers_hand(self, dealers_hand, row=0, initial_column=1):
-        self.dealers_label_text.set(f"Dealer's hand:\nSum: {self.dealers_hand.sum_cards()}")
-
         self.dealers_hand = dealers_hand
+        self.dealers_label_text.set(f"Dealer's hand:\nSum: {self.dealers_hand.sum_cards()}")
         self.config_hand(self.dealers_hand, row, initial_column)
 
     def config_hand(self, hand, row, initial_column):
@@ -125,13 +143,14 @@ class _StartGame(GUIForm):
             self.config_dealers_hand(recved)
 
         else:
-            self.welcome_text.set(self.welcome_text.get() + recved)
+            self.welcome_text.set(self.welcome_text.get() + "\n" + recved)
 
-            if self.my_turn and re.search("It's .*'s turn!", recved):  # my turn have passed
+            if self.my_turn and (
+                    re.search("It's .*'s turn!", recved) or "Round's OVER!" in recved):  # my turn have passed
                 self.my_turn = False
                 self.grid_forget_buttons()
 
-            if self.username in recved:  # my turn!
+            if f"It's {self.username}'s turn!" in recved:  # my turn!
                 self.my_turn = True
                 self.grid_buttons(self.socket.recv_message())
 

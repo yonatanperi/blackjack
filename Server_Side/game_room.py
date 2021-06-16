@@ -20,8 +20,6 @@ class GameRoom:
             return False
 
         # welcome!
-        self.send_broadcast(
-            f"{client.username} joined the game!\nThere are {len({*self.clients_connected}) + 1}/{GameRoom.MAX_PLAYERS} players in room!")
         self.clients_connected.append(client)
         client.send_message(f"""
         Welcome to {self.clients_connected[0].username}'s game room!
@@ -62,11 +60,11 @@ class GameRoom:
 
     def waiting_room(self, client):
 
-        client.send_message("Connected successfully!")
-
         if client is self.clients_connected[0]:  # The admin client
             ready = client.get_answer(True)  # is admin
+            client.send_message("Connected successfully!")
             if ready:
+                self.send_broadcast(True)  # send the game just started
                 self.clients_ready.insert(0, client)
                 self.start_round()
             else:
@@ -78,11 +76,14 @@ class GameRoom:
             ready = client.get_answer(False)  # is admin
 
             if ready:
+                self.clients_ready.append(client)
                 while not self.start:  # waiting for the game to start...
                     time.sleep(GameRoom.SLEEP_TIME)
                     if client is self.clients_connected[0]:  # admin loged out
                         self.logout(client)
                         return
+
+                client.send_message("Connected successfully!")
 
                 while self.start:  # game started
                     time.sleep(GameRoom.SLEEP_TIME)
@@ -111,7 +112,6 @@ class GameRoom:
 
             client.send_message((dealers_hand, clients_hand))
 
-        #time.sleep(10)  # for the client to activate all the funcs
         self.send_broadcast(f"""\n---------------------------\nNew round started!
 The players are: {self.clients_ready}
 It's {self.clients_ready[0]}'s turn!""")
@@ -122,13 +122,15 @@ It's {self.clients_ready[0]}'s turn!""")
 
         # dealer's card revel
         dealers_hand.cards.pop(0)
+        dealers_hand.suit_cards.pop(0)
         dealer_cards_sum = 0
 
+        # add cards to dealer
         while dealer_cards_sum < 17:
             dealers_hand.add_card()
             dealer_cards_sum = dealers_hand.sum_2_highest_if_ace()
 
-        self.send_broadcast(f"The dealer's full cards are: {dealers_hand}")
+        self.send_broadcast(dealers_hand)
 
         # winners & losers
         winners = []
@@ -219,5 +221,5 @@ It's {self.clients_ready[0]}'s turn!""")
             self.send_broadcast("Round's OVER!\n")
 
     def send_broadcast(self, message):
-        for client in self.clients_connected:
+        for client in self.clients_ready:
             client.send_message(message)

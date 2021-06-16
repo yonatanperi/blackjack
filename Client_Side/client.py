@@ -1,6 +1,6 @@
 import socket
 import pickle
-
+from hand import Hand
 
 class Client:
     HEADER_SIZE = 10
@@ -26,23 +26,14 @@ class Client:
             full_msg += msg
 
         # full msg recvd
+        print("recved: " + str(pickle.loads(full_msg[Client.HEADER_SIZE:])))
         return pickle.loads(full_msg[Client.HEADER_SIZE:])
 
     def send_message(self, message):
+        print("send:" + str(message))
         bytes_message = pickle.dumps(message)
         self.client_socket.send(bytes(f'{len(bytes_message):<{Client.HEADER_SIZE}}', 'utf-8') + bytes_message)
 
     def get_answer(self, message):  # makes life easier
         self.send_message(message)
         return self.recv_message()
-
-
-'''
-def main():
-    client = Client()
-    client.connect("localhost", 1234)
-    client.run_gui()
-
-
-if __name__ == '__main__':
-    main()'''

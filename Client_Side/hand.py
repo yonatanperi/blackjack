@@ -3,9 +3,7 @@ import random
 
 class Hand:
 
-    def __init__(self, bet, cards=None):
-        if cards is None:
-            cards = []
+    def __init__(self, bet, cards=[]):
         self.bet = bet
         self.cards = cards
         self.suit_cards = []

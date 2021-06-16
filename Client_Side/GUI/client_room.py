@@ -1,4 +1,5 @@
-from gui_form import GUIForm
+import time
+
 from GUI.game_room import GameRoom
 from GUI.room import Room
 from tkinter import *
@@ -35,9 +36,10 @@ class ClientRoom(Room):
             self.create_button.grid_forget()
         else:
             self.socket.send_message("join")
-            self.socket.send_message(entry_text)
-            self.root.destroy()
-            GameRoom(self.socket)
+            time.sleep(1)
+            if self.socket.get_answer(entry_text):  # is vailed
+                self.root.destroy()
+                GameRoom(self.socket)
 
     def logout(self):
         self.socket.send_message("logout")

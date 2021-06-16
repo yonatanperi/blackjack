@@ -27,12 +27,14 @@ class Client:
                 full_msg += msg
 
             # full msg recvd
+            print("recved: " + str(pickle.loads(full_msg[Client.HEADER_SIZE:])))
             return pickle.loads(full_msg[Client.HEADER_SIZE:])
         except ConnectionResetError:  # loged out
             return
 
     def send_message(self, message):
-        time.sleep(0.5)
+        print("send:" + str(message))
+        time.sleep(0.5)  # for the client to activate all the funcs
         bytes_message = pickle.dumps(message)
         self.socket.send(bytes(f'{len(bytes_message):<{Client.HEADER_SIZE}}', 'utf-8') + bytes_message)
 

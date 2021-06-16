@@ -54,8 +54,7 @@ Losses: {self.sql.get_staff_on_user(self.client.username, "lose")}""")
                 self.client.game_room.join(self.client)
             elif answer == "join":
                 game_room = self.server.get_game_room(self.client.recv_message())
-
-                self.client.send_message(game_room)
+                self.client.send_message(not not game_room)  # is vailed
                 if not game_room:
                     return self.main_menu()
                 game_room.join(self.client)
